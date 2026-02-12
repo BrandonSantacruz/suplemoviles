@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'terrenos_guardados.dart';
 
 class PanelAdmin extends StatefulWidget {
   const PanelAdmin({super.key});
@@ -50,7 +49,8 @@ class _PanelAdminState extends State<PanelAdmin> {
     try {
       final conteo = await Supabase.instance.client
           .from('terrenos_trazados')
-          .select('id', const FetchOptions(count: CountOption.exact));
+          .select('id')
+          .count(CountOption.exact);
 
       final total = conteo.count ?? 0;
       final nuevoNombre = 'Terreno ${total + 1}';
@@ -124,18 +124,6 @@ class _PanelAdminState extends State<PanelAdmin> {
             tooltip: 'Cerrar sesión',
             onPressed: () => _cerrarSesion(context),
           ),
-          IconButton(
-            icon: const Icon(Icons.map_outlined, color: Colors.white),
-            tooltip: 'Ver terrenos trazados',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const PantallaTerrenosGuardados(),
-                ),
-              );
-            },
-          ),
         ],
       ),
       body: Column(
@@ -151,7 +139,7 @@ class _PanelAdminState extends State<PanelAdmin> {
               children: [
                 TileLayer(
                   urlTemplate:
-                      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
                   subdomains: const ['a', 'b', 'c'],
                 ),
                 MarkerLayer(

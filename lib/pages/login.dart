@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
-import 'mapa.dart';
-import 'panel_admin.dart';
-import 'panel_superadmin.dart';
+import 'tracking_corredores.dart' hide Text, TextButton;
+import 'admin_corredores.dart';
 
 class IniciarSesion extends StatefulWidget {
   @override
@@ -31,12 +30,10 @@ class _IniciarSesionState extends State<IniciarSesion> {
 
       final rol = respuesta['rol'];
 
-      if (rol == 'topografo') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PantallaMapa()));
+      if (rol == 'corredor') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PantallaCorredorTracking()));
       } else if (rol == 'admin') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PanelAdmin()));
-      } else if (rol == 'superadmin') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PanelSuperadmin()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PanelAdministracionCorredores()));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login fallido: $e')));

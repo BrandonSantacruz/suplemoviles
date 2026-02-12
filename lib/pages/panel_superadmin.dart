@@ -1,299 +1,444 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'UbicacionTopografos.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
-class PanelSuperadmin extends StatefulWidget {
-  const PanelSuperadmin({super.key});
+class PanelSuperAdmin extends StatefulWidget {
+  const PanelSuperAdmin({super.key});
 
   @override
-  State<PanelSuperadmin> createState() => _PanelSuperadminState();
+  State<PanelSuperAdmin> createState() => _PanelSuperAdminState();
 }
 
-class _PanelSuperadminState extends State<PanelSuperadmin> {
-  late Future<List<Map<String, dynamic>>> _usuarios;
+class _PanelSuperAdminState extends State<PanelSuperAdmin> {
+  List<Map<String, dynamic>> _admins = [];
+  List<Map<String, dynamic>> _corredores = [];
+  List<Map<String, dynamic>> _ubicacionesCorredores = [];
+  final emailCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
+  String _rolCrear = 'corredor';
 
   @override
   void initState() {
     super.initState();
-    _usuarios = obtenerUsuarios();
+    print('DEBUG: Panel Superadmin inicializado');
+    _cargarAdmins();
+    _cargarCorredores();
+    _iniciarActualizacionUbicaciones();
   }
 
-  Future<List<Map<String, dynamic>>> obtenerUsuarios() async {
-    final res = await Supabase.instance.client
-        .from('usuarios')
-        .select()
-        .order('email', ascending: true);
-    return List<Map<String, dynamic>>.from(res);
-  }
-
-  Future<void> cambiarEstado(String id, bool nuevoEstado) async {
-    await Supabase.instance.client
-        .from('usuarios')
-        .update({'activo': nuevoEstado})
-        .eq('id', id);
-    setState(() {
-      _usuarios = obtenerUsuarios();
-    });
-  }
-
-  Future<void> eliminarUsuario(String id) async {
-    await Supabase.instance.client
-        .from('usuarios')
-        .delete()
-        .eq('id', id);
-    setState(() {
-      _usuarios = obtenerUsuarios();
-    });
-  }
-
-  Future<void> _cerrarSesion(BuildContext context) async {
-    await Supabase.instance.client.auth.signOut();
-    Navigator.pushReplacementNamed(context, '/');
-  }
-
-  Future<void> _crearUsuario(String email, String password, String rol) async {
+  Future<void> _cargarAdmins() async {
     try {
-      final authResponse = await Supabase.instance.client.auth.signUp(
-        email: email,
-        password: password,
-      );
+      final datos = await Supabase.instance.client
+          .from('usuarios')
+          .select()
+          .eq('rol', 'admin');
+      print('DEBUG: Admins cargados: ${datos.length}');
+      if (mounted) {
+        setState(() {
+          _admins = List<Map<String, dynamic>>.from(datos);
+        });
+      }
+    } catch (e) {
+      print('DEBUG ERROR: Error al cargar admins: $e');
+    }
+  }
 
-      if (authResponse.user == null) {
-        throw Exception('No se pudo crear el usuario en autenticación');
+  Future<void> _cargarCorredores() async {
+    try {
+      final datos = await Supabase.instance.client
+          .from('usuarios')
+          .select()
+          .eq('rol', 'corredor');
+      print('DEBUG: Corredores cargados: ${datos.length}');
+      if (mounted) {
+        setState(() {
+          _corredores = List<Map<String, dynamic>>.from(datos);
+        });
+      }
+    } catch (e) {
+      print('DEBUG ERROR: Error al cargar corredores: $e');
+    }
+  }
+
+  void _iniciarActualizacionUbicaciones() {
+    Future.microtask(() => _cargarUbicacionesEnTiempoReal());
+  }
+
+  Future<void> _cargarUbicacionesEnTiempoReal() async {
+    while (mounted) {
+      try {
+        final datos = await Supabase.instance.client
+            .from('ubicaciones_corredores')
+            .select()
+            .gt('timestamp', DateTime.now().subtract(const Duration(minutes: 5)).toIso8601String());
+        if (mounted) {
+          setState(() {
+            _ubicacionesCorredores = List<Map<String, dynamic>>.from(datos);
+          });
+        }
+      } catch (e) {
+        print('DEBUG ERROR: Error al cargar ubicaciones: $e');
+      }
+      await Future.delayed(const Duration(seconds: 3));
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Future<void> _crearUsuario() async {
+    try {
+      if (emailCtrl.text.isEmpty || passCtrl.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Completa todos los campos')),
+        );
+        return;
       }
 
-      final userId = authResponse.user!.id;
-
-      await Supabase.instance.client.from('usuarios').insert({
-        'id': userId,
-        'email': email,
-        'rol': rol,
-        'activo': true,
-      });
-
-      setState(() {
-        _usuarios = obtenerUsuarios();
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario agregado correctamente')),
+      final respuesta = await Supabase.instance.client.auth.signUp(
+        email: emailCtrl.text.trim(),
+        password: passCtrl.text.trim(),
+        data: {
+          'rol': _rolCrear,
+        },
       );
-    } catch (e) {
-      if (!mounted) return;
+      final usuario = respuesta.user;
+
+      if (usuario == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo crear el usuario')),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al agregar usuario: $e')),
+        SnackBar(content: Text('${_rolCrear == 'admin' ? 'Administrador' : 'Corredor'} creado con éxito')),
+      );
+
+      emailCtrl.clear();
+      passCtrl.clear();
+      _cargarAdmins();
+      _cargarCorredores();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
-  void _mostrarDialogoAgregarUsuario() {
-    final emailCtrl = TextEditingController();
-    final passwordCtrl = TextEditingController();
-    String rolSeleccionado = 'topografo'; 
+  Future<void> _eliminarUsuario(String usuarioId) async {
+    try {
+      // Primero eliminar de la tabla usuarios
+      await Supabase.instance.client.from('usuarios').delete().eq('id', usuarioId);
+      // Luego eliminar de auth usando admin API
+      await Supabase.instance.client.auth.admin.deleteUser(usuarioId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario eliminado')),
+      );
+      _cargarAdmins();
+      _cargarCorredores();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar: $e')),
+      );
+    }
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            'Agregar Usuario',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: emailCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        labelStyle: TextStyle(color: Colors.white70),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white54),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                  const SizedBox(height: 12),
-                    TextField(
-                      controller: passwordCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Contraseña',
-                        labelStyle: TextStyle(color: Colors.white70),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white54),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                      ),
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: rolSeleccionado,
-                      items: [
-                        DropdownMenuItem(value: 'topografo', child: Text('Topógrafo', style: TextStyle(color: Colors.white))),
-                        DropdownMenuItem(value: 'admin', child: Text('Administrador', style: TextStyle(color: Colors.white))),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setStateDialog(() {
-                            rolSeleccionado = val;
-                          });
-                        }
-                      },
-                      style: const TextStyle(color: Colors.white), 
-                      decoration: const InputDecoration(
-                        labelText: 'Rol',
-                        labelStyle: TextStyle(color: Colors.white70),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white54),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                      ),
-                    ),
+  Future<void> _cambiarRol(String usuarioId, String nuevoRol) async {
+    try {
+      await Supabase.instance.client
+          .from('usuarios')
+          .update({'rol': nuevoRol})
+          .eq('id', usuarioId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Rol cambiado a $nuevoRol')),
+      );
+      _cargarAdmins();
+      _cargarCorredores();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cambiar rol: $e')),
+      );
+    }
+  }
 
-                  ],
-                ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final email = emailCtrl.text.trim();
-                final password = passwordCtrl.text.trim();
-
-                if (email.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('El email no puede estar vacío')),
-                  );
-                  return;
-                }
-                if (password.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('La contraseña no puede estar vacía')),
-                  );
-                  return;
-                }
-
-                Navigator.pop(context);
-                await _crearUsuario(email, password, rolSeleccionado);
-              },
-              child: const Text('Agregar'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _cambiarEstadoUsuario(String usuarioId, bool activo) async {
+    try {
+      await Supabase.instance.client
+          .from('usuarios')
+          .update({'activo': activo})
+          .eq('id', usuarioId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(activo ? 'Usuario activado' : 'Usuario desactivado')),
+      );
+      _cargarAdmins();
+      _cargarCorredores();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cambiar estado: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFECEFF1),
+      backgroundColor: Colors.blueGrey.shade900,
       appBar: AppBar(
-        backgroundColor: Colors.indigo.shade800,
-        title: const Row(
-          children: [
-            Icon(Icons.verified_user_rounded, color: Colors.amberAccent),
-            SizedBox(width: 8),
-            Text('Panel Superadmin', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
-            tooltip: 'Agregar usuario',
-            onPressed: _mostrarDialogoAgregarUsuario,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Cerrar sesión',
-            onPressed: () => _cerrarSesion(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.map_outlined, color: Colors.white),
-            tooltip: 'Ver ubicación topógrafos',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const UbicacionTopografos(),
+        backgroundColor: Colors.blueGrey.shade800,
+        title: const Text('Panel Superadmin'),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.green.shade600,
+        onPressed: _mostrarDialogoCrearUsuario,
+        tooltip: 'Agregar nuevo perfil',
+        child: const Icon(Icons.person_add),
+      ),
+      body: Column(
+        children: [
+          // Mapa ocupando 60% de la pantalla
+          Expanded(
+            flex: 3,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: _ubicacionesCorredores.isNotEmpty
+                    ? LatLng(_ubicacionesCorredores.first['latitud'] as double, _ubicacionesCorredores.first['longitud'] as double)
+                    : const LatLng(-0.278233, -78.496129),
+                initialZoom: 15,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
+                  subdomains: const ['a', 'b', 'c'],
                 ),
-              );
-            },
+                if (_ubicacionesCorredores.isNotEmpty)
+                  MarkerLayer(
+                    markers: _ubicacionesCorredores.map((corredor) {
+                      final latitud = corredor['latitud'] as double;
+                      final longitud = corredor['longitud'] as double;
+                      return Marker(
+                        point: LatLng(latitud, longitud),
+                        width: 40,
+                        height: 40,
+                        child: Icon(
+                          Icons.location_on,
+                          color: Colors.red,
+                          size: 40,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+          ),
+          // Información y listado de usuarios ocupando 40% de la pantalla
+          Expanded(
+            flex: 2,
+            child: Container(
+              color: Colors.blueGrey.shade800,
+              padding: const EdgeInsets.all(12),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Corredores en línea: ${_ubicacionesCorredores.length}',
+                      style: const TextStyle(
+                        color: Colors.amberAccent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Corredores
+                    const Text('Corredores:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    SizedBox(
+                      height: 80,
+                      child: _corredores.isEmpty
+                          ? const Center(child: Text('No hay corredores', style: TextStyle(color: Colors.white70, fontSize: 12)))
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _corredores.length,
+                              itemBuilder: (context, index) {
+                                final corredor = _corredores[index];
+                                final activo = corredor['activo'] as bool? ?? true;
+                                return ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(Icons.directions_run, color: activo ? Colors.green : Colors.red, size: 18),
+                                  title: Text(corredor['email'], style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                  subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 10)),
+                                  trailing: PopupMenuButton<String>(
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
+                                      const PopupMenuItem(value: 'cambiar_rol', child: Text('Cambiar a Admin')),
+                                      if (activo)
+                                        const PopupMenuItem(value: 'desactivar', child: Text('Desactivar'))
+                                      else
+                                        const PopupMenuItem(value: 'activar', child: Text('Activar')),
+                                    ],
+                                    onSelected: (value) {
+                                      if (value == 'eliminar') {
+                                        _eliminarUsuario(corredor['id']);
+                                      } else if (value == 'cambiar_rol') {
+                                        _cambiarRol(corredor['id'], 'admin');
+                                      } else if (value == 'desactivar') {
+                                        _cambiarEstadoUsuario(corredor['id'], false);
+                                      } else if (value == 'activar') {
+                                        _cambiarEstadoUsuario(corredor['id'], true);
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Administradores
+                    const Text('Administradores:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    SizedBox(
+                      height: 60,
+                      child: _admins.isEmpty
+                          ? const Center(child: Text('No hay administradores', style: TextStyle(color: Colors.white70, fontSize: 12)))
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _admins.length,
+                              itemBuilder: (context, index) {
+                                final admin = _admins[index];
+                                final activo = admin['activo'] as bool? ?? true;
+                                return ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(Icons.admin_panel_settings, color: activo ? Colors.blue : Colors.red, size: 18),
+                                  title: Text(admin['email'], style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                  subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 10)),
+                                  trailing: PopupMenuButton<String>(
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
+                                      const PopupMenuItem(value: 'cambiar_rol', child: Text('Cambiar a Corredor')),
+                                      if (activo)
+                                        const PopupMenuItem(value: 'desactivar', child: Text('Desactivar'))
+                                      else
+                                        const PopupMenuItem(value: 'activar', child: Text('Activar')),
+                                    ],
+                                    onSelected: (value) {
+                                      if (value == 'eliminar') {
+                                        _eliminarUsuario(admin['id']);
+                                      } else if (value == 'cambiar_rol') {
+                                        _cambiarRol(admin['id'], 'corredor');
+                                      } else if (value == 'desactivar') {
+                                        _cambiarEstadoUsuario(admin['id'], false);
+                                      } else if (value == 'activar') {
+                                        _cambiarEstadoUsuario(admin['id'], true);
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
-        elevation: 0,
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _usuarios,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    );
+  }
 
-          final usuarios = snapshot.data!;
-          if (usuarios.isEmpty) {
-            return const Center(
-              child: Text('No hay usuarios.', style: TextStyle(color: Colors.black54)),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: usuarios.length,
-            itemBuilder: (context, index) {
-              final user = usuarios[index];
-              final activo = user['activo'] ?? true;
-              final rol = user['rol'] ?? 'desconocido';
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: ListTile(
-                  leading: const Icon(Icons.person, color: Colors.indigo),
-                  title: Text(user['email'] ?? 'Sin email'),
-                  subtitle: Text('Rol: $rol\nActivo: ${activo ? "Sí" : "No"}'),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          activo ? Icons.block : Icons.check_circle,
-                          color: activo ? Colors.red : Colors.green,
-                        ),
-                        tooltip: activo ? 'Desactivar' : 'Activar',
-                        onPressed: () => cambiarEstado(user['id'], !activo),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_forever, color: Colors.grey),
-                        tooltip: 'Eliminar usuario',
-                        onPressed: () => eliminarUsuario(user['id']),
-                      ),
-                    ],
+  void _mostrarDialogoCrearUsuario() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.blueGrey.shade800,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Crear Nuevo Perfil', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    filled: true,
+                    fillColor: Colors.blueGrey.shade900,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  style: const TextStyle(color: Colors.white),
                 ),
-              );
-            },
-          );
-        },
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    filled: true,
+                    fillColor: Colors.blueGrey.shade900,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _rolCrear,
+                  dropdownColor: Colors.blueGrey.shade900,
+                  items: [
+                    const DropdownMenuItem(
+                      value: 'corredor',
+                      child: Text('Corredor', style: TextStyle(color: Colors.white)),
+                    ),
+                    const DropdownMenuItem(
+                      value: 'admin',
+                      child: Text('Administrador', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                  onChanged: (valor) => setState(() => _rolCrear = valor!),
+                  decoration: InputDecoration(
+                    labelText: 'Selecciona un rol',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    filled: true,
+                    fillColor: Colors.blueGrey.shade900,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await _crearUsuario();
+                        if (mounted) Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                      child: const Text('Crear'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

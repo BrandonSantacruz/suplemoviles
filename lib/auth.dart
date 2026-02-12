@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/login.dart';
-import 'pages/mapa.dart';
-import 'pages/panel_admin.dart';
+import 'pages/tracking_corredores.dart' hide Text, TextButton;
+import 'pages/admin_corredores.dart';
 import 'pages/panel_superadmin.dart';
 
 class VerificarAutenticacion extends StatefulWidget {
@@ -59,23 +59,29 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
           .single();
 
       final rol = respuesta['rol'];
+      
+      print('DEBUG AUTH: Rol del usuario: $rol');
+      
+      setState(() {
+        _mensaje = 'Rol: $rol';
+      });
 
       await Future.delayed(const Duration(seconds: 2)); 
 
-      if (rol == 'topografo') {
+      if (rol == 'superadmin') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => PantallaMapa()),
+          MaterialPageRoute(builder: (_) => const PanelSuperAdmin()),
         );
       } else if (rol == 'admin') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => PanelAdmin()),
+          MaterialPageRoute(builder: (_) => const PanelAdministracionCorredores()),
         );
-      } else if (rol == 'superadmin') {
+      } else if (rol == 'corredor') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => PanelSuperadmin()),
+          MaterialPageRoute(builder: (_) => const PantallaCorredorTracking()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +114,7 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
             const Icon(Icons.location_searching, size: 90, color: Color(0xFF38BDF8)),
             const SizedBox(height: 20),
             const Text(
-              'GeoTrack App',
+              'BolsaStreet',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,

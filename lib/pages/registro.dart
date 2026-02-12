@@ -11,35 +11,42 @@ class _RegistrarseState extends State<Registrarse> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
   bool mostrarPassword = false;
-  String _rolSeleccionado = 'topografo';
+  String _rolSeleccionado = 'corredor';
 
   Future<void> _registrar() async {
     try {
       final respuesta = await Supabase.instance.client.auth.signUp(
         email: emailCtrl.text.trim(),
         password: passCtrl.text.trim(),
+        data: {
+          'rol': _rolSeleccionado,
+        },
       );
-
       final usuario = respuesta.user;
-      await Supabase.instance.client.from('usuarios').insert({
-        'id': usuario!.id,
-        'email': emailCtrl.text.trim(),
-        'rol': _rolSeleccionado,
-      });
-
+      if (usuario == null) {
+        // Si no se creó el usuario, mostrar error específico
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo crear la cuenta. Verifica el correo o intenta con otro.')),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cuenta creada con éxito')),
       );
-
-      Future.delayed(const Duration(seconds: 2), () {
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => IniciarSesion()),
         );
-      });
+      }
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.message}')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error inesperado: $e')),
       );
     }
   }
@@ -108,7 +115,7 @@ class _RegistrarseState extends State<Registrarse> {
                   dropdownColor: Colors.blueGrey.shade900,
                   decoration: estiloInput.copyWith(labelText: 'Rol'),
                   value: _rolSeleccionado,
-                  items: ['topografo', 'admin', 'superadmin'].map((rol) {
+                  items: ['corredor', 'admin', 'superadmin'].map((rol) {
                     return DropdownMenuItem(
                       value: rol,
                       child: Text(rol.toUpperCase(), style: const TextStyle(color: Colors.white)),

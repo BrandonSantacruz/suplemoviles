@@ -6,8 +6,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://ocrewhcitbcuflszmpyx.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jcmV3aGNpdGJjdWZsc3ptcHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1NzQ1OTYsImV4cCI6MjA2OTE1MDU5Nn0.2JvttKGn3DbL986xmAhvsqAv5BfznhWBEEaXi898VHc',
+    url: 'https://epsixchtvnemohydlpaf.supabase.co',
+    anonKey: 'sb_publishable__9DlE5RQ6V6pGSUjNweHBA_PwXUBRIS',
   );
 
   runApp(const MiAplicacion());
@@ -24,7 +24,7 @@ class MiAplicacion extends StatelessWidget {
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF0EA5E9),
         secondary: Color(0xFF10B981),
-        background: Color(0xFF0F172A),
+        surface: Color(0xFF0F172A),
         error: Color(0xFFF87171),
       ),
       textTheme: const TextTheme(
@@ -34,7 +34,7 @@ class MiAplicacion extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'GeoTrack App',
+      title: 'BolsaStreet',
       theme: tema,
       home: VerificarAutenticacion(),
     );
