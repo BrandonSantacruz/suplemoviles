@@ -63,25 +63,33 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
   }
 
   void _iniciarActualizacionUbicaciones() {
-    Future.microtask(() => _cargarUbicacionesEnTiempoReal());
+    _cargarUbicacionesEnTiempoReal();
   }
 
   Future<void> _cargarUbicacionesEnTiempoReal() async {
-    while (mounted) {
-      try {
-        final datos = await Supabase.instance.client
-            .from('ubicaciones_corredores')
-            .select()
-            .gt('timestamp', DateTime.now().subtract(const Duration(minutes: 5)).toIso8601String());
-        if (mounted) {
-          setState(() {
-            _ubicacionesCorredores = List<Map<String, dynamic>>.from(datos);
-          });
-        }
-      } catch (e) {
-        print('DEBUG ERROR: Error al cargar ubicaciones: $e');
+    try {
+      final datos = await Supabase.instance.client
+          .from('ubicaciones_corredores')
+          .select()
+          .order('timestamp', ascending: false)
+          .limit(100);
+      
+      print('DEBUG: Ubicaciones cargadas: ${datos.length}');
+      if (mounted) {
+        setState(() {
+          _ubicacionesCorredores = List<Map<String, dynamic>>.from(datos);
+        });
       }
-      await Future.delayed(const Duration(seconds: 3));
+      // Actualizar cada 3 segundos
+      if (mounted) {
+        Future.delayed(const Duration(seconds: 3), _cargarUbicacionesEnTiempoReal);
+      }
+    } catch (e) {
+      print('DEBUG ERROR: Error al cargar ubicaciones: $e');
+      // Reintentar en 3 segundos
+      if (mounted) {
+        Future.delayed(const Duration(seconds: 3), _cargarUbicacionesEnTiempoReal);
+      }
     }
   }
 
@@ -187,13 +195,33 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
     }
   }
 
+  Future<void> _cerrarSesion(BuildContext context) async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blueGrey.shade900,
       appBar: AppBar(
         backgroundColor: Colors.blueGrey.shade800,
-        title: const Text('Panel Superadmin'),
+        title: const Row(
+          children: [
+            Icon(Icons.security, color: Colors.amberAccent),
+            SizedBox(width: 8),
+            Text('Panel Superadmin', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Cerrar sesión',
+            onPressed: () => _cerrarSesion(context),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.green.shade600,
@@ -221,7 +249,10 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                   )
                 : FlutterMap(
                     options: MapOptions(
-                      initialCenter: LatLng(_ubicacionesCorredores.first['latitud'] as double, _ubicacionesCorredores.first['longitud'] as double),
+                      initialCenter: LatLng(
+                        double.parse(_ubicacionesCorredores.first['latitud'].toString()),
+                        double.parse(_ubicacionesCorredores.first['longitud'].toString()),
+                      ),
                       initialZoom: 15,
                     ),
                     children: [
@@ -232,18 +263,48 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                       ),
                       MarkerLayer(
                         markers: _ubicacionesCorredores.map((corredor) {
-                          final latitud = corredor['latitud'] as double;
-                          final longitud = corredor['longitud'] as double;
-                          return Marker(
-                            point: LatLng(latitud, longitud),
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 40,
-                            ),
-                          );
+                          try {
+                            final latitud = double.parse(corredor['latitud'].toString());
+                            final longitud = double.parse(corredor['longitud'].toString());
+                            return Marker(
+                              point: LatLng(latitud, longitud),
+                              width: 40,
+                              height: 40,
+                              child: Column(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red.withOpacity(0.5),
+                                          blurRadius: 8,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } catch (e) {
+                            print('Error al procesar ubicación: $e');
+                            return Marker(
+                              point: const LatLng(-0.278233, -78.496129),
+                              width: 40,
+                              height: 40,
+                              child: const Icon(
+                                Icons.error,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                            );
+                          }
                         }).toList(),
                       ),
                     ],
