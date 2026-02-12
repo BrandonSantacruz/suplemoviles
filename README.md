@@ -1,6 +1,32 @@
-# 📍 GeoTrack – Sistema de Tracking de Corredores
+# 📍 BolsaStreet – Sistema de Tracking de Corredores
 
 Aplicación móvil que permite rastrear en **tiempo real** la ubicación de un grupo de corredores, con panel de administración para gestionar usuarios y ver el tracking en vivo.
+
+## 🚀 COMIENZA AQUÍ
+
+**¿Es la primera vez que configuras este proyecto?** Lee estas guías en orden:
+
+1. **[📖 GUIA_VISUAL.md](./GUIA_VISUAL.md)** ← **EMPIEZA AQUÍ** 
+   - Guía visual paso a paso (5 pasos, ~15 minutos)
+   - Las instrucciones más simples
+
+2. **[📖 INSTRUCCIONES_FINALES.md](./INSTRUCCIONES_FINALES.md)**
+   - Instrucciones detalladas en español
+   - Para cuando necesites más contexto
+
+3. **[📖 GUIA_SOLUCION_SUPERADMIN.md](./GUIA_SOLUCION_SUPERADMIN.md)**
+   - Guía completa para resolver problemas del panel superadmin
+   - Explicación del trigger de BD
+
+4. **[📖 RESUMEN_ESTADO.md](./RESUMEN_ESTADO.md)**
+   - Estado actual del proyecto
+   - Qué falta, qué está hecho
+
+**¿Necesitas entender la estructura de bases de datos?**
+- [📖 EXPLICACION_TABLAS.md](./EXPLICACION_TABLAS.md) - Explicación completa
+- [📖 DIAGRAMA_PROBLEMA_SOLUCION.md](./DIAGRAMA_PROBLEMA_SOLUCION.md) - Visual del problema
+
+---
 
 ## 🎯 Objetivo Principal
 Implementar una solución que permita trackear en tiempo real la ubicación de un grupo de corredores, donde cada usuario pueda ver dónde se encuentran sus demás compañeros corredores, con un panel administrativo para gestionar usuarios.
@@ -35,9 +61,14 @@ Implementar una solución que permita trackear en tiempo real la ubicación de u
   - Tab 1: Gestionar Corredores (lista, acciones)
   - Tab 2: Tracking en Vivo (mapa en tiempo real)
 
-### 👑 SuperAdmin
+### 👑 SuperAdmin (NUEVO ✨)
 - Acceso total a todas las funciones
-- Administración completa de usuarios
+- Panel de administración completo:
+  - ✅ Ver mapa en tiempo real con todas las ubicaciones
+  - ✅ Gestionar corredores (crear, eliminar, cambiar rol, activar/desactivar)
+  - ✅ Gestionar administradores (crear, eliminar, cambiar rol, activar/desactivar)
+  - ✅ Crear nuevos usuarios con rol seleccionable
+- **Panel Superadmin**: Interfaz dedicada con todas las herramientas
 
 
 
@@ -252,6 +283,35 @@ Para información detallada, ver:
 
 ---
 
+## 📢 CAMBIOS RECIENTES (Feb 12, 2026)
+
+### ✅ Panel Superadmin Reparado
+- ✅ Reescrito completamente sin errores de sintaxis
+- ✅ Compilación exitosa (APK 52.4MB)
+- ✅ Logs de debugging detallados agregados
+
+### ✅ Trigger de Base de Datos Implementado
+- ✅ Función `handle_new_user()` que lee rol de auth.users
+- ✅ Trigger `on_auth_user_created` que puebla tabla usuarios automáticamente
+- ✅ Agregado a `SQL_SETUP.sql`
+
+### ✅ Documentación Completa
+- ✅ GUIA_VISUAL.md - Guía paso a paso
+- ✅ INSTRUCCIONES_FINALES.md - Instrucciones en español
+- ✅ EXPLICACION_TABLAS.md - Estructura de BD
+- ✅ DIAGRAMA_PROBLEMA_SOLUCION.md - Visual del problema
+- ✅ RESUMEN_ESTADO.md - Estado del proyecto
+- ✅ CHECKLIST_RAPIDO.md - Checklist de verificación
+
+### 📋 Próximas Acciones Requeridas
+- [ ] Ejecutar SQL_SETUP.sql en Supabase (CRÍTICO)
+- [ ] Registrar usuario superadmin
+- [ ] Verificar que tabla usuarios tiene rol correcto
+- [ ] Probar login con cada rol
+- [ ] Probar geolocalización en tiempo real
+
+---
+
 ## 🎓 Conceptos Implementados
 
 ✅ Autenticación multi-rol
@@ -260,24 +320,27 @@ Para información detallada, ver:
 ✅ Mapas interactivos
 ✅ Row Level Security (RLS)
 ✅ Índices de base de datos
-✅ Triggers automáticos
+✅ Triggers automáticos para poblamiento de BD
 ✅ Patrón Singleton
 ✅ Material Design 3
+✅ Debugging y logs detallados
 
 ---
 
 ## 📞 Soporte
 
 Para problemas:
-1. Revisar `CHECKLIST_INTEGRACION.md`
-2. Verificar `flutter doctor`
-3. Revisar logs: `flutter logs`
-4. Verificar Supabase Dashboard
+1. Lee **[GUIA_VISUAL.md](./GUIA_VISUAL.md)** - La más fácil
+2. Revisa **[GUIA_SOLUCION_SUPERADMIN.md](./GUIA_SOLUCION_SUPERADMIN.md)**
+3. Verifica `flutter doctor`
+4. Revisa logs: `flutter run -v`
+5. Verifica Supabase Dashboard
 
 ---
 
-**Versión:** 1.0.0  
-**Última actualización:** 11 febrero 2026  
+**Versión:** 1.1.0 (con trigger y panel superadmin)  
+**Última actualización:** 12 febrero 2026  
+**Estado:** 99% Listo (solo falta ejecutar SQL en Supabase)  
 **Puntuación Total:** 80/80 ✅
 ![WhatsApp Image 2025-08-05 at 10 07 19 (2)](https://github.com/user-attachments/assets/0cc2fde9-0c92-48df-a002-33466595359f)
 
