@@ -86,6 +86,8 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
 
   @override
   void dispose() {
+    emailCtrl.dispose();
+    passCtrl.dispose();
     super.dispose();
   }
 
@@ -115,7 +117,7 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_rolCrear == 'admin' ? 'Administrador' : 'Corredor'} creado con éxito')),
+        SnackBar(content: Text('${_rolCrear == 'admin' ? 'Administrador' : _rolCrear == 'superadmin' ? 'Superadmin' : 'Corredor'} creado con éxito')),
       );
 
       emailCtrl.clear();
@@ -131,9 +133,7 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
 
   Future<void> _eliminarUsuario(String usuarioId) async {
     try {
-      // Primero eliminar de la tabla usuarios
       await Supabase.instance.client.from('usuarios').delete().eq('id', usuarioId);
-      // Luego eliminar de auth usando admin API
       await Supabase.instance.client.auth.admin.deleteUser(usuarioId);
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -202,43 +202,52 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
       ),
       body: Column(
         children: [
-          // Mapa ocupando 60% de la pantalla
           Expanded(
             flex: 3,
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: _ubicacionesCorredores.isNotEmpty
-                    ? LatLng(_ubicacionesCorredores.first['latitud'] as double, _ubicacionesCorredores.first['longitud'] as double)
-                    : const LatLng(-0.278233, -78.496129),
-                initialZoom: 15,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-                  subdomains: const ['a', 'b', 'c'],
-                ),
-                if (_ubicacionesCorredores.isNotEmpty)
-                  MarkerLayer(
-                    markers: _ubicacionesCorredores.map((corredor) {
-                      final latitud = corredor['latitud'] as double;
-                      final longitud = corredor['longitud'] as double;
-                      return Marker(
-                        point: LatLng(latitud, longitud),
-                        width: 40,
-                        height: 40,
-                        child: Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      );
-                    }).toList(),
+            child: _ubicacionesCorredores.isEmpty
+                ? FlutterMap(
+                    options: MapOptions(
+                      initialCenter: const LatLng(-0.278233, -78.496129),
+                      initialZoom: 15,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
+                        subdomains: const ['a', 'b', 'c'],
+                      ),
+                    ],
+                  )
+                : FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(_ubicacionesCorredores.first['latitud'] as double, _ubicacionesCorredores.first['longitud'] as double),
+                      initialZoom: 15,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
+                        subdomains: const ['a', 'b', 'c'],
+                      ),
+                      MarkerLayer(
+                        markers: _ubicacionesCorredores.map((corredor) {
+                          final latitud = corredor['latitud'] as double;
+                          final longitud = corredor['longitud'] as double;
+                          return Marker(
+                            point: LatLng(latitud, longitud),
+                            width: 40,
+                            height: 40,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 40,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
-              ],
-            ),
           ),
-          // Información y listado de usuarios ocupando 40% de la pantalla
           Expanded(
             flex: 2,
             child: Container(
@@ -257,7 +266,6 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Corredores
                     const Text('Corredores:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                     SizedBox(
                       height: 80,
@@ -301,7 +309,6 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                             ),
                     ),
                     const SizedBox(height: 8),
-                    // Administradores
                     const Text('Administradores:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                     SizedBox(
                       height: 60,
@@ -404,6 +411,10 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                     const DropdownMenuItem(
                       value: 'admin',
                       child: Text('Administrador', style: TextStyle(color: Colors.white)),
+                    ),
+                    const DropdownMenuItem(
+                      value: 'superadmin',
+                      child: Text('Superadmin', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                   onChanged: (valor) => setState(() => _rolCrear = valor!),
