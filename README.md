@@ -367,6 +367,114 @@ Para problemas:
 - Anthony Haro
 - Jhonatan Bautista
 
+---
+
+# BolsaStreet 🚦
+
+¡Hola! Este es mi proyecto final de móviles. Es una app hecha en Flutter que sirve para rastrear en tiempo real la ubicación de diferentes usuarios (corredores, administradores y superadmins) usando mapas y Supabase como backend.
+
+---
+
+## 🚀 ¿Qué hace la app?
+- Permite registrarse y loguearse con email y contraseña
+- Hay 3 tipos de usuario: **corredor**, **admin** y **superadmin**
+- Cada uno tiene su propio panel
+- El corredor transmite su ubicación en tiempo real (aunque minimices la app)
+- El admin y el superadmin pueden ver a todos los corredores en el mapa
+- El superadmin puede crear, eliminar y cambiar roles de usuarios
+- Todo se guarda y gestiona en Supabase
+
+---
+
+## 📦 Instalación rápida
+
+1. **Clona el repo:**
+   ```bash
+   git clone https://github.com/BrandonSantacruz/suplemoviles.git
+   cd suplemoviles/Proyecto_Final_Moviles
+   ```
+2. **Instala dependencias:**
+   ```bash
+   flutter pub get
+   ```
+3. **Configura Supabase:**
+   - Crea un proyecto en [Supabase](https://app.supabase.com)
+   - Copia tus claves en el archivo `lib/services/supabase_service.dart` (o donde corresponda)
+   - Ejecuta el script `SQL_SETUP.sql` en el SQL Editor de Supabase para crear las tablas y triggers
+   - Activa la verificación de correo si quieres (opcional)
+   - En **Authentication > URL Configuration** pon:
+     - `io.supabase.flutter://login-callback/` en Redirect URLs
+
+4. **Compila el APK:**
+   ```bash
+   flutter build apk --release
+   ```
+5. **Instala el APK en tu teléfono y prueba!**
+
+---
+
+## 🗂️ Estructura de carpetas
+
+- `lib/` → Todo el código Dart de la app
+  - `pages/` → Pantallas principales (login, registro, paneles, etc)
+  - `services/` → Servicios como Supabase y ubicación
+- `android/` y `ios/` → Archivos nativos
+- `assets/` → Imágenes y recursos
+- `SQL_SETUP.sql` → Script para crear las tablas en Supabase
+- `README.md` → Este archivo
+
+---
+
+## 🛠️ Funcionalidades principales
+
+- **Login y registro** con validación
+- **Panel corredor:**
+  - Muestra tu ubicación en tiempo real
+  - Funciona en segundo plano
+- **Panel admin:**
+  - Ve a todos los corredores en el mapa
+  - Gestiona usuarios
+- **Panel superadmin:**
+  - Control total: crear, eliminar, cambiar roles
+  - Ve a todos los usuarios en el mapa
+- **Mapa interactivo** con OpenStreetMap
+- **Notificaciones y mensajes claros**
+
+---
+
+## ⚡ Notas sobre Supabase
+- Si activas la verificación de correo, los nuevos usuarios tendrán que confirmar su email
+- El trigger de la base de datos copia el rol del usuario automáticamente
+- Si quieres eliminar usuarios de verdad (de auth), hazlo desde el panel de Supabase
+- Para que los links de confirmación funcionen en móvil, pon bien el redirect URL
+
+---
+
+## ❓ Preguntas frecuentes (FAQ)
+
+**¿Por qué no puedo entrar si no confirmo el correo?**  
+Porque activaste la verificación en Supabase. Revisa tu email y confirma.
+
+**¿Por qué no puedo eliminar usuarios desde la app?**  
+Por seguridad, solo puedes eliminarlos de la tabla usuarios. Si quieres borrarlos de auth, hazlo en Supabase.
+
+**¿Por qué no veo mi ubicación en el mapa?**  
+Activa el GPS, da permisos y asegúrate de estar logueado como corredor.
+
+**¿Puedo cambiar el rol de un usuario?**  
+Sí, desde el panel superadmin.
+
+---
+
+## 👦 Autor
+
+Hecho por Brandon Santacruz, 23 años, estudiante de ingeniería.  
+Si tienes dudas, ¡escríbeme!
+
+---
+
+¡Gracias por revisar mi proyecto! 🚀
+
 
 
 

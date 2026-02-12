@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'registro.dart';
-import 'tracking_corredores.dart' hide Text, TextButton;
-import 'admin_corredores.dart';
+// import 'tracking_corredores.dart';
+// import 'admin_corredores.dart';
 
 class IniciarSesion extends StatefulWidget {
   @override
@@ -20,23 +20,63 @@ class _IniciarSesionState extends State<IniciarSesion> {
         email: emailCtrl.text.trim(),
         password: passCtrl.text.trim(),
       );
-
       final usuario = Supabase.instance.client.auth.currentUser;
-      final respuesta = await Supabase.instance.client
+      if (usuario == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario o contraseña incorrectos.')),
+        );
+        return;
+      }
+      // Consultar si está activo
+      final datos = await Supabase.instance.client
           .from('usuarios')
-          .select('rol')
-          .eq('id', usuario!.id)
+          .select('activo')
+          .eq('id', usuario.id)
           .single();
-
-      final rol = respuesta['rol'];
-
-      if (rol == 'corredor') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PantallaCorredorTracking()));
-      } else if (rol == 'admin') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PanelAdministracionCorredores()));
+      final activo = datos['activo'] as bool? ?? true;
+      if (!activo) {
+        await Supabase.instance.client.auth.signOut();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/');
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tu cuenta está inactiva. Comunícate con el superadmin.')),
+        );
+        return;
+      }
+      // Si está activo, navegar normalmente
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login fallido: $e')));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarActivoAlIniciar();
+  }
+
+  Future<void> _verificarActivoAlIniciar() async {
+    final usuario = Supabase.instance.client.auth.currentUser;
+    if (usuario != null) {
+      final datos = await Supabase.instance.client
+          .from('usuarios')
+          .select('activo')
+          .eq('id', usuario.id)
+          .single();
+      final activo = datos['activo'] as bool? ?? true;
+      if (!activo) {
+        await Supabase.instance.client.auth.signOut();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/');
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tu cuenta está inactiva. Comunícate con el superadmin.')),
+        );
+      }
     }
   }
 

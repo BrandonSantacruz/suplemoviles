@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,12 +13,14 @@ class PanelSuperAdmin extends StatefulWidget {
 }
 
 class _PanelSuperAdminState extends State<PanelSuperAdmin> {
+    final MapController _mapController = MapController();
   List<Map<String, dynamic>> _admins = [];
   List<Map<String, dynamic>> _corredores = [];
   List<Map<String, dynamic>> _ubicacionesCorredores = [];
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
   String _rolCrear = 'corredor';
+  bool _yaHizoPanInicial = false;
 
   @override
   void initState() {
@@ -142,12 +146,42 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
 
   Future<void> _eliminarUsuario(String usuarioId) async {
     try {
+      // 1. Buscar el user_id de auth en la tabla usuarios
+      final res = await Supabase.instance.client
+          .from('usuarios')
+          .select('id')
+          .eq('id', usuarioId)
+          .single();
+      final userIdAuth = res['id'];
+      if (userIdAuth == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró el user_id de auth para este usuario.')),
+        );
+        return;
+      }
+
+      // 2. Eliminar de la tabla usuarios
       await Supabase.instance.client.from('usuarios').delete().eq('id', usuarioId);
-      await Supabase.instance.client.auth.admin.deleteUser(usuarioId);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario eliminado')),
+
+      // 3. Llamar a la Edge Function para eliminar de Auth
+      final response = await http.post(
+        Uri.parse('https://TU-PROYECTO.functions.supabase.co/delete-user'), // Reemplaza TU-PROYECTO
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer \\${Supabase.instance.client.auth.currentSession?.accessToken ?? ''}',
+        },
+        body: jsonEncode({'user_id': userIdAuth}),
       );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario eliminado completamente.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar de auth: \\${response.body}')),
+        );
+      }
       _cargarAdmins();
       _cargarCorredores();
     } catch (e) {
@@ -163,9 +197,8 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
           .from('usuarios')
           .update({'rol': nuevoRol})
           .eq('id', usuarioId);
-      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Rol cambiado a $nuevoRol')),
+        const SnackBar(content: Text('Rol cambiado con éxito')),
       );
       _cargarAdmins();
       _cargarCorredores();
@@ -182,7 +215,7 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
           .from('usuarios')
           .update({'activo': activo})
           .eq('id', usuarioId);
-      
+      setState(() {}); // Forzar refresco inmediato
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(activo ? 'Usuario activado' : 'Usuario desactivado')),
       );
@@ -204,6 +237,15 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
 
   @override
   Widget build(BuildContext context) {
+    // Pan automático solo la primera vez
+    if (!_yaHizoPanInicial && _ubicacionesCorredores.isNotEmpty) {
+      final lat = double.tryParse(_ubicacionesCorredores.first['latitud'].toString()) ?? -0.278233;
+      final lng = double.tryParse(_ubicacionesCorredores.first['longitud'].toString()) ?? -78.496129;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(LatLng(lat, lng), 15);
+      });
+      _yaHizoPanInicial = true;
+    }
     return Scaffold(
       backgroundColor: Colors.blueGrey.shade900,
       appBar: AppBar(
@@ -233,82 +275,86 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
         children: [
           Expanded(
             flex: 3,
-            child: _ubicacionesCorredores.isEmpty
-                ? FlutterMap(
-                    options: MapOptions(
-                      initialCenter: const LatLng(-0.278233, -78.496129),
-                      initialZoom: 15,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-                        subdomains: const ['a', 'b', 'c'],
-                      ),
-                    ],
-                  )
-                : FlutterMap(
-                    options: MapOptions(
-                      initialCenter: LatLng(
-                        double.parse(_ubicacionesCorredores.first['latitud'].toString()),
-                        double.parse(_ubicacionesCorredores.first['longitud'].toString()),
-                      ),
-                      initialZoom: 15,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-                        subdomains: const ['a', 'b', 'c'],
-                      ),
-                      MarkerLayer(
-                        markers: _ubicacionesCorredores.map((corredor) {
-                          try {
-                            final latitud = double.parse(corredor['latitud'].toString());
-                            final longitud = double.parse(corredor['longitud'].toString());
-                            return Marker(
-                              point: LatLng(latitud, longitud),
-                              width: 40,
-                              height: 40,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.red.withOpacity(0.5),
-                                          blurRadius: 8,
-                                        ),
-                                      ],
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _ubicacionesCorredores.isNotEmpty
+                    ? LatLng(
+                        double.tryParse(_ubicacionesCorredores.first['latitud'].toString()) ?? -0.278233,
+                        double.tryParse(_ubicacionesCorredores.first['longitud'].toString()) ?? -78.496129,
+                      )
+                    : const LatLng(-0.278233, -78.496129),
+                initialZoom: 15,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      "https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
+                  subdomains: const ['a', 'b', 'c'],
+                ),
+                if (_ubicacionesCorredores.isNotEmpty)
+                  MarkerLayer(
+                    markers: _ubicacionesCorredores.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final corredor = entry.value;
+                      try {
+                        final latitud = double.parse(corredor['latitud'].toString());
+                        final longitud = double.parse(corredor['longitud'].toString());
+                        final usuarioId = corredor['usuario_id']?.toString() ?? '';
+                        final color = Colors.primaries[i % Colors.primaries.length];
+                        return Marker(
+                          point: LatLng(latitud, longitud),
+                          width: 80,
+                          height: 60,
+                          child: Column(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: color.withOpacity(0.5),
+                                      blurRadius: 8,
                                     ),
-                                    child: const Icon(
-                                      Icons.location_on,
-                                      color: Colors.white,
-                                      size: 30,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
                               ),
-                            );
-                          } catch (e) {
-                            print('Error al procesar ubicación: $e');
-                            return Marker(
-                              point: const LatLng(-0.278233, -78.496129),
-                              width: 40,
-                              height: 40,
-                              child: const Icon(
-                                Icons.error,
-                                color: Colors.red,
-                                size: 40,
+                              const SizedBox(height: 2),
+                              Text(
+                                usuarioId.substring(0, usuarioId.length > 6 ? 6 : usuarioId.length),
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                  backgroundColor: Colors.white,
+                                ),
                               ),
-                            );
-                          }
-                        }).toList(),
-                      ),
-                    ],
+                            ],
+                          ),
+                        );
+                      } catch (e) {
+                        print('Error al procesar ubicación: $e');
+                        return Marker(
+                          point: const LatLng(-0.278233, -78.496129),
+                          width: 40,
+                          height: 40,
+                          child: const Icon(
+                            Icons.error,
+                            color: Colors.red,
+                            size: 40,
+                          ),
+                        );
+                      }
+                    }).toList(),
                   ),
+              ],
+            ),
           ),
           Expanded(
             flex: 2,
@@ -363,7 +409,6 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                                   final lat = double.tryParse(loc['latitud'].toString()) ?? 0;
                                   final lng = double.tryParse(loc['longitud'].toString()) ?? 0;
                                   final vel = double.tryParse(loc['velocidad'].toString()) ?? 0;
-                                  final timestamp = loc['timestamp'] ?? 'N/A';
                                   
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 8),
@@ -419,26 +464,32 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                                   leading: Icon(Icons.directions_run, color: activo ? Colors.green : Colors.red, size: 18),
                                   title: Text(corredor['email'], style: const TextStyle(color: Colors.white, fontSize: 11)),
                                   subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 9)),
-                                  trailing: PopupMenuButton<String>(
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
-                                      const PopupMenuItem(value: 'cambiar_rol', child: Text('Cambiar a Admin')),
-                                      if (activo)
-                                        const PopupMenuItem(value: 'desactivar', child: Text('Desactivar'))
-                                      else
-                                        const PopupMenuItem(value: 'activar', child: Text('Activar')),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          activo ? Icons.toggle_on : Icons.toggle_off,
+                                          color: activo ? Colors.green : Colors.red,
+                                          size: 28,
+                                        ),
+                                        tooltip: activo ? 'Desactivar' : 'Activar',
+                                        onPressed: () => _cambiarEstadoUsuario(corredor['id'], !activo),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
+                                          const PopupMenuItem(value: 'cambiar_rol', child: Text('Cambiar a Admin')),
+                                        ],
+                                        onSelected: (value) {
+                                          if (value == 'eliminar') {
+                                            _eliminarUsuario(corredor['id']);
+                                          } else if (value == 'cambiar_rol') {
+                                            _cambiarRol(corredor['id'], 'admin');
+                                          }
+                                        },
+                                      ),
                                     ],
-                                    onSelected: (value) {
-                                      if (value == 'eliminar') {
-                                        _eliminarUsuario(corredor['id']);
-                                      } else if (value == 'cambiar_rol') {
-                                        _cambiarRol(corredor['id'], 'admin');
-                                      } else if (value == 'desactivar') {
-                                        _cambiarEstadoUsuario(corredor['id'], false);
-                                      } else if (value == 'activar') {
-                                        _cambiarEstadoUsuario(corredor['id'], true);
-                                      }
-                                    },
                                   ),
                                 );
                               },
@@ -467,26 +518,32 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                                   leading: Icon(Icons.admin_panel_settings, color: activo ? Colors.blue : Colors.red, size: 18),
                                   title: Text(admin['email'], style: const TextStyle(color: Colors.white, fontSize: 11)),
                                   subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 9)),
-                                  trailing: PopupMenuButton<String>(
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
-                                      const PopupMenuItem(value: 'cambiar_rol', child: Text('Cambiar a Corredor')),
-                                      if (activo)
-                                        const PopupMenuItem(value: 'desactivar', child: Text('Desactivar'))
-                                      else
-                                        const PopupMenuItem(value: 'activar', child: Text('Activar')),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          activo ? Icons.toggle_on : Icons.toggle_off,
+                                          color: activo ? Colors.green : Colors.red,
+                                          size: 28,
+                                        ),
+                                        tooltip: activo ? 'Desactivar' : 'Activar',
+                                        onPressed: () => _cambiarEstadoUsuario(admin['id'], !activo),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
+                                          const PopupMenuItem(value: 'cambiar_rol', child: Text('Cambiar a Corredor')),
+                                        ],
+                                        onSelected: (value) {
+                                          if (value == 'eliminar') {
+                                            _eliminarUsuario(admin['id']);
+                                          } else if (value == 'cambiar_rol') {
+                                            _cambiarRol(admin['id'], 'corredor');
+                                          }
+                                        },
+                                      ),
                                     ],
-                                    onSelected: (value) {
-                                      if (value == 'eliminar') {
-                                        _eliminarUsuario(admin['id']);
-                                      } else if (value == 'cambiar_rol') {
-                                        _cambiarRol(admin['id'], 'corredor');
-                                      } else if (value == 'desactivar') {
-                                        _cambiarEstadoUsuario(admin['id'], false);
-                                      } else if (value == 'activar') {
-                                        _cambiarEstadoUsuario(admin['id'], true);
-                                      }
-                                    },
                                   ),
                                 );
                               },
