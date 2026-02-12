@@ -52,15 +52,23 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
     });
 
     try {
+      print('DEBUG AUTH: Iniciando consulta de rol para usuario: ${usuario.id}');
+      print('DEBUG AUTH: Email: ${usuario.email}');
+      
       final respuesta = await Supabase.instance.client
           .from('usuarios')
-          .select('rol')
+          .select('rol, email, activo')
           .eq('id', usuario.id)
           .single();
 
       final rol = respuesta['rol'];
+      final email = respuesta['email'];
+      final activo = respuesta['activo'];
       
-      print('DEBUG AUTH: Rol del usuario: $rol');
+      print('DEBUG AUTH: Rol recuperado: $rol (tipo: ${rol.runtimeType})');
+      print('DEBUG AUTH: Email recuperado: $email');
+      print('DEBUG AUTH: Activo: $activo');
+      print('DEBUG AUTH: Respuesta completa: $respuesta');
       
       setState(() {
         _mensaje = 'Rol: $rol';
@@ -68,24 +76,33 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
 
       await Future.delayed(const Duration(seconds: 2)); 
 
+      print('DEBUG AUTH: Evaluando condiciones de rol...');
+      print('DEBUG AUTH: ¿rol == "superadmin"? ${rol == 'superadmin'}');
+      print('DEBUG AUTH: ¿rol == "admin"? ${rol == 'admin'}');
+      print('DEBUG AUTH: ¿rol == "corredor"? ${rol == 'corredor'}');
+
       if (rol == 'superadmin') {
+        print('DEBUG AUTH: Navegando a PanelSuperAdmin');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const PanelSuperAdmin()),
         );
       } else if (rol == 'admin') {
+        print('DEBUG AUTH: Navegando a PanelAdministracionCorredores');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const PanelAdministracionCorredores()),
         );
       } else if (rol == 'corredor') {
+        print('DEBUG AUTH: Navegando a PantallaCorredorTracking');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const PantallaCorredorTracking()),
         );
       } else {
+        print('DEBUG AUTH ERROR: Rol desconocido: "$rol"');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rol desconocido: $rol')),
+          SnackBar(content: Text('Rol desconocido: "$rol"')),
         );
         Navigator.pushReplacement(
           context,
@@ -93,8 +110,10 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
         );
       }
     } catch (e) {
+      print('DEBUG AUTH ERROR: Excepción al consultar rol: $e');
+      print('DEBUG AUTH ERROR: Stack trace: ${e.toString()}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al verificar el rol')),
+        SnackBar(content: Text('Error al verificar el rol: $e')),
       );
       Navigator.pushReplacement(
         context,

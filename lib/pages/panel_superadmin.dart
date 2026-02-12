@@ -21,10 +21,11 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
   @override
   void initState() {
     super.initState();
-    print('DEBUG: Panel Superadmin inicializado');
+    print('DEBUG PANEL: Panel Superadmin inicializado');
     _cargarAdmins();
     _cargarCorredores();
     _iniciarActualizacionUbicaciones();
+    print('DEBUG PANEL: Inicialización completada');
   }
 
   Future<void> _cargarAdmins() async {

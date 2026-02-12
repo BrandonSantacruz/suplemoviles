@@ -83,6 +83,38 @@ CREATE POLICY "Corredores pueden actualizar ubicaciones"
 -- FUNCIONES Y TRIGGERS
 -- ============================================
 
+-- Función para manejar nuevos usuarios (crear entrada en tabla usuarios)
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  user_rol TEXT;
+BEGIN
+  -- Obtener el rol de los metadatos del usuario (raw_user_meta_data)
+  user_rol := NEW.raw_user_meta_data->>'rol';
+  
+  -- Si no hay rol definido, usar 'corredor' como default
+  IF user_rol IS NULL OR user_rol = '' THEN
+    user_rol := 'corredor';
+  END IF;
+  
+  -- Insertar en la tabla usuarios
+  INSERT INTO public.usuarios (id, email, rol, activo)
+  VALUES (NEW.id, NEW.email, user_rol, true)
+  ON CONFLICT (id) DO UPDATE SET
+    email = NEW.email,
+    rol = user_rol,
+    activo = true;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger para crear usuario en tabla usuarios cuando se crea en auth
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_new_user();
+
 -- Actualizar el campo updated_at automáticamente
 CREATE OR REPLACE FUNCTION actualizar_updated_at()
 RETURNS TRIGGER AS $$
