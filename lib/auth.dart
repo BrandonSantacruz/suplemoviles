@@ -70,12 +70,6 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
       print('DEBUG AUTH: Activo: $activo');
       print('DEBUG AUTH: Respuesta completa: $respuesta');
       
-      setState(() {
-        _mensaje = 'Rol: $rol';
-      });
-
-      await Future.delayed(const Duration(seconds: 2)); 
-
       print('DEBUG AUTH: Evaluando condiciones de rol...');
       print('DEBUG AUTH: ¿rol == "superadmin"? ${rol == 'superadmin'}');
       print('DEBUG AUTH: ¿rol == "admin"? ${rol == 'admin'}');
@@ -83,31 +77,39 @@ class _VerificarAutenticacionState extends State<VerificarAutenticacion>
 
       if (rol == 'superadmin') {
         print('DEBUG AUTH: Navegando a PanelSuperAdmin');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const PanelSuperAdmin()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const PanelSuperAdmin()),
+          );
+        }
       } else if (rol == 'admin') {
         print('DEBUG AUTH: Navegando a PanelAdministracionCorredores');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const PanelAdministracionCorredores()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const PanelAdministracionCorredores()),
+          );
+        }
       } else if (rol == 'corredor') {
         print('DEBUG AUTH: Navegando a PantallaCorredorTracking');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const PantallaCorredorTracking()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const PantallaCorredorTracking()),
+          );
+        }
       } else {
         print('DEBUG AUTH ERROR: Rol desconocido: "$rol"');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rol desconocido: "$rol"')),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => IniciarSesion()),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Rol desconocido: "$rol"')),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => IniciarSesion()),
+          );
+        }
       }
     } catch (e) {
       print('DEBUG AUTH ERROR: Excepción al consultar rol: $e');

@@ -319,18 +319,92 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Corredores en línea: ${_ubicacionesCorredores.length}',
-                      style: const TextStyle(
-                        color: Colors.amberAccent,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                    // Ubicaciones en tiempo real
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blueGrey.shade900,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amberAccent.withOpacity(0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.location_on, color: Colors.amberAccent, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Corredores en línea: ${_ubicacionesCorredores.length}',
+                                style: const TextStyle(
+                                  color: Colors.amberAccent,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (_ubicacionesCorredores.isEmpty)
+                            const Center(
+                              child: Text(
+                                'Sin ubicaciones registradas',
+                                style: TextStyle(color: Colors.white54, fontSize: 11),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              height: 100,
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: _ubicacionesCorredores.length,
+                                itemBuilder: (context, index) {
+                                  final loc = _ubicacionesCorredores[index];
+                                  final lat = double.tryParse(loc['latitud'].toString()) ?? 0;
+                                  final lng = double.tryParse(loc['longitud'].toString()) ?? 0;
+                                  final vel = double.tryParse(loc['velocidad'].toString()) ?? 0;
+                                  final timestamp = loc['timestamp'] ?? 'N/A';
+                                  
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueGrey.shade700,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '📍 Lat: ${lat.toStringAsFixed(6)}',
+                                          style: const TextStyle(color: Colors.lightBlue, fontSize: 10, fontFamily: 'monospace'),
+                                        ),
+                                        Text(
+                                          '📍 Lng: ${lng.toStringAsFixed(6)}',
+                                          style: const TextStyle(color: Colors.lightBlue, fontSize: 10, fontFamily: 'monospace'),
+                                        ),
+                                        Text(
+                                          '⚡ Vel: ${vel.toStringAsFixed(2)} km/h',
+                                          style: const TextStyle(color: Colors.yellow, fontSize: 9),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Corredores:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    
+                    // Corredores
+                    const Text(
+                      '👤 Corredores:',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                     SizedBox(
-                      height: 80,
+                      height: 60,
                       child: _corredores.isEmpty
                           ? const Center(child: Text('No hay corredores', style: TextStyle(color: Colors.white70, fontSize: 12)))
                           : ListView.builder(
@@ -343,8 +417,8 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
                                   leading: Icon(Icons.directions_run, color: activo ? Colors.green : Colors.red, size: 18),
-                                  title: Text(corredor['email'], style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                  subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 10)),
+                                  title: Text(corredor['email'], style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                  subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 9)),
                                   trailing: PopupMenuButton<String>(
                                     itemBuilder: (context) => [
                                       const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
@@ -371,9 +445,14 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                             ),
                     ),
                     const SizedBox(height: 8),
-                    const Text('Administradores:', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                    
+                    // Administradores
+                    const Text(
+                      '👨‍💼 Administradores:',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                     SizedBox(
-                      height: 60,
+                      height: 50,
                       child: _admins.isEmpty
                           ? const Center(child: Text('No hay administradores', style: TextStyle(color: Colors.white70, fontSize: 12)))
                           : ListView.builder(
@@ -386,8 +465,8 @@ class _PanelSuperAdminState extends State<PanelSuperAdmin> {
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
                                   leading: Icon(Icons.admin_panel_settings, color: activo ? Colors.blue : Colors.red, size: 18),
-                                  title: Text(admin['email'], style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                  subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 10)),
+                                  title: Text(admin['email'], style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                  subtitle: Text(activo ? 'Activo' : 'Inactivo', style: TextStyle(color: activo ? Colors.green : Colors.red, fontSize: 9)),
                                   trailing: PopupMenuButton<String>(
                                     itemBuilder: (context) => [
                                       const PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
